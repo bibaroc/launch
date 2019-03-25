@@ -6,33 +6,16 @@ import (
 	"io/ioutil"
 	"log"
 
+	"github.com/bibaroc/launch/config"
 	"github.com/bibaroc/launch/watchdir"
 )
-
-type configuration struct {
-	Target []watchedDir  `json:"monitor"`
-	Timed  []timedAction `json:"repeat"`
-	Action string        `json:"onStart"`
-}
-
-type watchedDir struct {
-	Path      string `json:"watch"`
-	Timeout   int    `json:"after"`
-	MatchRule string `json:"test"`
-	Action    string `json:"do"`
-}
-
-type timedAction struct {
-	Action   string `json:"do"`
-	Timespan int    `json:"every"`
-}
 
 func main() {
 	buffer, err := ioutil.ReadFile("launch.config.json")
 	if err != nil {
 		log.Println(err)
 	}
-	value := configuration{}
+	value := config.Configuration{}
 	json.Unmarshal(buffer, &value)
 	fmt.Println(value)
 
