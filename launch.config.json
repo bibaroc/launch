@@ -1,0 +1,17 @@
+{
+    "onStart:": "pleaseKillMe",
+    "monitor": [
+        {
+            "watch": ".",
+            "after": 300,
+            "test": "*",
+            "do": "go run launch.go"
+        }
+    ],
+    "repeat": [
+        {
+            "do": "somethit",
+            "every": 300
+        }
+    ]
+}
