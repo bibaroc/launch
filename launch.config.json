@@ -1,5 +1,4 @@
 {
-    "onStart": "pleaseKillMe",
     "monitor": [
         {
             "watch": ".",

@@ -6,12 +6,12 @@ import (
 
 //Configuration rappresents basic configuration
 type Configuration struct {
-	Target []watchedDir  `json:"monitor"`
+	Target []WatchedDir  `json:"monitor"`
 	Timed  []timedAction `json:"repeat"`
-	Action string        `json:"onStart"`
 }
 
-type watchedDir struct {
+//WatchedDir is a watched dir
+type WatchedDir struct {
 	Path      string `json:"watch"`
 	Timeout   int    `json:"after"`
 	MatchRule string `json:"test"`
@@ -24,11 +24,11 @@ type timedAction struct {
 }
 
 func (c Configuration) String() string {
-	return fmt.Sprintf("Configuration=[Action=%v, Target=%v, Timed=%v]", c.Action, c.Target, c.Timed)
+	return fmt.Sprintf("Configuration=[Target=%v, Timed=%v]", c.Target, c.Timed)
 }
 
-func (c watchedDir) String() string {
-	return fmt.Sprintf("watchedDir=[Path=%v, Timeout=%v, MatchRule=%v, Action=%v]", c.Path, c.Timeout, c.MatchRule, c.Action)
+func (c WatchedDir) String() string {
+	return fmt.Sprintf("WatchedDir=[Path=%v, Timeout=%v, MatchRule=%v, Action=%v]", c.Path, c.Timeout, c.MatchRule, c.Action)
 }
 
 func (t timedAction) String() string {
