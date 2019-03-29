@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/bibaroc/launch/config"
@@ -39,6 +40,26 @@ func execute(dir config.WatchedDir, quit chan string) {
 
 	for v := range events {
 		log.Println("Detected", v.Action, "of", v.FilePath)
+		if m, err := regexp.MatchString(dir.MatchRule, v.FilePath); err != nil {
+			quit <- "Error while testing modification event" + err.Error()
+		} else {
+			if m {
+				//If the process is already dead a permission error is raised
+				//I think it's because you are trying to access illegal memory
+				//If code reaches this point i know i can start a process, there is no reason i couldnt quit itc
+				log.Println(v.FilePath, "matched", dir.MatchRule)
+				if err := cmd.Process.Kill(); err != nil {
+					if !os.IsPermission(err) {
+						quit <- "Error killing application" + err.Error()
+					}
+				}
+				cmd = exec.Command(args[0], args[1:]...)
+				cmd.Stderr = os.Stderr
+				cmd.Stdin = os.Stdin
+				cmd.Stdout = os.Stdout
+				err = cmd.Start()
+			}
+		}
 	}
 }
 
@@ -51,7 +72,7 @@ func main() {
 	//init
 	flag.Parse()
 	if *command != "" {
-		application.Target = append(application.Target, config.WatchedDir{Path: ".", Timeout: 300, MatchRule: "*", Action: *command})
+		application.Target = append(application.Target, config.WatchedDir{Path: ".", Timeout: 300, MatchRule: ".*", Action: *command})
 	} else {
 		path, err := filepath.Abs("launch.config.json")
 		if err != nil {
