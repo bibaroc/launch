@@ -10,12 +10,12 @@ import (
 
 //ModificationEvent is an event notification
 type ModificationEvent struct {
-	watcher  int
-	filePath string
+	Action   string
+	FilePath string
 }
 
 //StartWatching returns a EventNotification when triggered
-func StartWatching(id int, path string, events chan ModificationEvent) {
+func StartWatching(path string, events chan ModificationEvent) {
 	//Pointer to utf8 string
 	sptr, err := syscall.UTF16PtrFromString(path)
 	if err != nil {
@@ -54,10 +54,22 @@ func StartWatching(id int, path string, events chan ModificationEvent) {
 			nil, &ovrlpd, 0)
 
 		err = syscall.GetQueuedCompletionStatus(fileprt, &bytesRead, &key, &ovrlpdptr, syscall.INFINITE)
-
+		//i am missing the syscal.FILE_ACTION_NEW_NAME here but KYSS
 		event := (*syscall.FileNotifyInformation)(unsafe.Pointer(&resultbfr[resultOffset]))
 		buf := (*[128]uint16)(unsafe.Pointer(&event.FileName))
 		name := syscall.UTF16ToString(buf[:event.FileNameLength/2])
-		events <- ModificationEvent{watcher: id, filePath: name}
+
+		act := "OTHER"
+		switch event.Action {
+		case syscall.FILE_ACTION_ADDED:
+			act = "ADDITION"
+		case syscall.FILE_ACTION_MODIFIED:
+			act = "MODIFICATION"
+		case syscall.FILE_ACTION_REMOVED:
+			act = "REMOVAL"
+		case syscall.FILE_ACTION_RENAMED_NEW_NAME | syscall.FILE_ACTION_RENAMED_OLD_NAME:
+			act = "RENAME"
+		}
+		events <- ModificationEvent{Action: act, FilePath: name}
 	}
 }
