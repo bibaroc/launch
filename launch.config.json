@@ -3,8 +3,8 @@
         {
             "watch": ".",
             "after": 300,
-            "test": "*",
-            "do": "go run launch.go"
+            "test": ".*",
+            "do": "ping 8.8.8.8"
         }
     ],
     "repeat": [
