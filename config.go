@@ -1,4 +1,4 @@
-package config
+package main
 
 import (
 	"fmt"
@@ -6,14 +6,14 @@ import (
 
 //Configuration rappresents basic configuration
 type Configuration struct {
-	Target []WatchedDir  `json:"monitor"`
+	Target []watchedDir  `json:"monitor"`
 	Timed  []timedAction `json:"repeat"`
 }
 
 //WatchedDir is a watched dir
-type WatchedDir struct {
+type watchedDir struct {
 	Path      string `json:"watch"`
-	Timeout   int    `json:"after"`
+	Timeout   string `json:"after"`
 	MatchRule string `json:"test"`
 	Action    string `json:"do"`
 }
@@ -27,7 +27,7 @@ func (c Configuration) String() string {
 	return fmt.Sprintf("Configuration=[Target=%v, Timed=%v]", c.Target, c.Timed)
 }
 
-func (c WatchedDir) String() string {
+func (c watchedDir) String() string {
 	return fmt.Sprintf("WatchedDir=[Path=%v, Timeout=%v, MatchRule=%v, Action=%v]", c.Path, c.Timeout, c.MatchRule, c.Action)
 }
 

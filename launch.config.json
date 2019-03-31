@@ -2,7 +2,7 @@
     "monitor": [
         {
             "watch": ".",
-            "after": 300,
+            "after": "3s",
             "test": ".*",
             "do": "ping 8.8.8.8"
         }
