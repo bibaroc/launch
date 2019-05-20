@@ -13,53 +13,59 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bibaroc/launch/watchdir"
+	"github.com/fsnotify/fsnotify"
 )
 
-func execute(dir watchedDir, quit chan string) {
+func execute(dir watchedDir, quit *sync.WaitGroup) {
 	var (
-		events    = make(chan watchdir.ModificationEvent, 10)
-		mx        sync.Mutex
-		path, err = filepath.Abs(dir.Path)
-		args      = strings.Split(dir.Action, " ")
-		cmd       *exec.Cmd
-		exqt      = func(what string, how ...string) func() {
+		mx      sync.Mutex
+		path, _ = filepath.Abs(dir.Path)
+		args    = strings.Split(dir.Action, " ")
+		cmd     *exec.Cmd
+		exqt    = func(what string, how ...string) func() {
 			return func() {
 				cmd = exec.Command(what, how...)
 				cmd.Stderr = os.Stderr
 				cmd.Stdout = os.Stdout
-				// cmd.Stdin = os.Stdin
-				err = cmd.Start()
+				err := cmd.Start()
 				if err != nil {
-					quit <- "execute error starting:" + dir.Action + err.Error()
+					log.Panic("execute error starting:" + dir.Action + err.Error())
 				}
 			}
 		}
-		t0, _ = time.ParseDuration("1us")
-		timer = time.AfterFunc(t0, exqt(args[0], args[1:]...))
+		t0, _        = time.ParseDuration("1us")
+		timer        = time.AfterFunc(t0, exqt(args[0], args[1:]...))
+		watcher, err = fsnotify.NewWatcher()
 	)
+
+	defer quit.Done()
+	defer watcher.Close()
+
 	if err != nil {
-		quit <- "execute:" + err.Error()
+		log.Println("execute:" + err.Error())
 		return
 	}
 
-	go watchdir.StartWatching(path, events)
+	watcher.Add(path)
 
-	for v := range events {
-		t1, err := time.ParseDuration(dir.Timeout)
-		if err != nil {
-			quit <- "Error parsing time " + err.Error()
-		}
-
-		log.Println("Detected", v.Action, "of", v.FilePath)
-		if m, err := regexp.MatchString(dir.MatchRule, v.FilePath); err != nil {
-			quit <- "Error while testing modification event" + err.Error()
-		} else {
+	for {
+		select {
+		case event := <-watcher.Events:
+			var (
+				pwd, _  = os.Getwd()
+				t1, err = time.ParseDuration(dir.Timeout)
+				m       bool
+			)
+			if err != nil {
+				log.Println("Error parsing time " + err.Error())
+				return
+			}
+			if m, err = regexp.MatchString(dir.MatchRule, strings.TrimLeft(event.Name, pwd)); err != nil {
+				log.Println("Error while testing modification event" + err.Error())
+				return
+			}
 			if m {
-				//If the process is already dead a permission error is raised
-				//I think it's because you are trying to access illegal memory
-				//If code reaches this point i know i can start a process, there is no reason i couldnt quit itc
-				log.Println(v.FilePath, "matched", dir.MatchRule)
+				log.Println(event.Name, "matched", dir.MatchRule)
 				go func() {
 					mx.Lock()
 					defer mx.Unlock()
@@ -68,7 +74,7 @@ func execute(dir watchedDir, quit chan string) {
 
 						if err := cmd.Process.Kill(); err != nil {
 							if !os.IsPermission(err) {
-								quit <- "Error killing application" + err.Error()
+								log.Println("Error killing application" + err.Error())
 							}
 						}
 
@@ -76,18 +82,21 @@ func execute(dir watchedDir, quit chan string) {
 					})
 				}()
 			}
+		case err := <-watcher.Errors:
+			log.Println("Error: ", err)
 		}
 	}
 }
 
 func main() {
-	//var declaration
+
 	var (
 		command     = flag.String("exec", "", "The comand you want to be launched and repeated on the current directoy everytime i changes")
 		application = Configuration{}
 	)
-	//init
+
 	flag.Parse()
+
 	if *command != "" {
 		application.Target = append(application.Target, watchedDir{Path: ".", Timeout: "300ms", MatchRule: ".*", Action: *command})
 	} else {
@@ -102,15 +111,11 @@ func main() {
 		json.Unmarshal(buffer, &application)
 	}
 
+	var wg sync.WaitGroup
 	log.Println(application)
-
-	errors := make(chan string)
 	for _, v := range application.Target {
-		go execute(v, errors)
+		wg.Add(1)
+		go execute(v, &wg)
 	}
-
-	for v := range errors {
-		log.Fatalln(v)
-	}
-
+	wg.Wait()
 }
